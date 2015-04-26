@@ -1,12 +1,13 @@
 #!/bin/bash
 
 /usr/bin/mysqld_safe > /dev/null 2>&1 &
+SOCKET=/var/lib/mysql_sock/mysql.sock
 
 RET=1
 while [[ RET -ne 0 ]]; do
     echo "=> Waiting for confirmation of MySQL service startup"
     sleep 5
-    mysql -uroot -e "status" > /dev/null 2>&1
+    mysql -uroot -e "status" -S $SOCKET > /dev/null 2>&1
     RET=$?
 done
 
@@ -14,8 +15,8 @@ PASS=${MYSQL_ADMIN_PASS:-$(pwgen -s 12 1)}
 _word=$( [ ${MYSQL_ADMIN_PASS} ] && echo "preset" || echo "random" )
 echo "=> Creating MySQL admin user with ${_word} password"
 
-mysql -uroot -e "CREATE USER 'admin'@'%' IDENTIFIED BY '$PASS'"
-mysql -uroot -e "GRANT ALL PRIVILEGES ON *.* TO 'admin'@'%' WITH GRANT OPTION"
+mysql -uroot -S $SOCKET -e "CREATE USER 'admin'@'%' IDENTIFIED BY '$PASS'"
+mysql -uroot -S $SOCKET -e "GRANT ALL PRIVILEGES ON *.* TO 'admin'@'%' WITH GRANT OPTION"
 
 CREATE_MYSQL_USER=false
 
@@ -31,10 +32,10 @@ if [ "$CREATE_MYSQL_USER" = true ]; then
     _userdb=${MYSQL_USER_DB:-db}
     _userpass=${MYSQL_USER_PASS:-password}
 
-    mysql -uroot -e "CREATE USER '${_user}'@'%' IDENTIFIED BY  '${_userpass}'"
-    mysql -uroot -e "GRANT USAGE ON *.* TO  '${_user}'@'%' IDENTIFIED BY '${_userpass}'"
-    mysql -uroot -e "CREATE DATABASE IF NOT EXISTS ${_userdb}"
-    mysql -uroot -e "GRANT ALL PRIVILEGES ON ${_userdb}.* TO '${_user}'@'%'"
+    mysql -uroot -S $SOCKET -e "CREATE USER '${_user}'@'%' IDENTIFIED BY  '${_userpass}'"
+    mysql -uroot -S $SOCKET -e "GRANT USAGE ON *.* TO  '${_user}'@'%' IDENTIFIED BY '${_userpass}'"
+    mysql -uroot -S $SOCKET -e "CREATE DATABASE IF NOT EXISTS ${_userdb}"
+    mysql -uroot -S $SOCKET -e "GRANT ALL PRIVILEGES ON ${_userdb}.* TO '${_user}'@'%'"
 fi
 
 echo "=> Done!"
@@ -58,4 +59,4 @@ fi
 echo "enjoy!"
 echo "========================================================================"
 
-mysqladmin -uroot shutdown
+mysqladmin -uroot -S $SOCKET shutdown

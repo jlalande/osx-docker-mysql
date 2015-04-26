@@ -1,11 +1,10 @@
-FROM phusion/baseimage:latest
-MAINTAINER Daniel Graziotin <daniel@ineed.coffee>
+FROM centos:6.6
+MAINTAINER "Jean Lalande" <jeanlalande@gmail.com>
 
-# based on dgraziotin/lamp, which is based on
-# tutumcloud/tutum-docker-lamp
-# MAINTAINER Fernando Mayo <fernando@tutum.co>, Feng Honglin <hfeng@tutum.co>
+# largely based on dgraziotin/mysql and adapted to run on CentOS 6
+# MAINTAINER Daniel Graziotin <daniel@ineed.coffee>
 
-ENV DOCKER_USER_ID 501 
+ENV DOCKER_USER_ID 501
 ENV DOCKER_USER_GID 20
 
 ENV BOOT2DOCKER_ID 1000
@@ -13,20 +12,23 @@ ENV BOOT2DOCKER_GID 50
 
 # Tweaks to give MySQL write permissions to the app
 RUN useradd -r mysql -u ${BOOT2DOCKER_ID} && \
-    usermod -G staff mysql
+    usermod -G mysql mysql
 
 RUN groupmod -g $(($BOOT2DOCKER_GID + 10000)) $(getent group $BOOT2DOCKER_GID | cut -d: -f1)
-RUN groupmod -g ${BOOT2DOCKER_GID} staff
+RUN groupmod -g ${BOOT2DOCKER_GID} mysql
 
 # Install packages
-ENV DEBIAN_FRONTEND noninteractive
-RUN apt-get update && \
-  apt-get -y install supervisor wget git mysql-server pwgen zip unzip
+RUN yum -y install epel-release && yum -y update && \
+  yum -y install wget git mysql-server pwgen zip unzip python-setuptools && \
+  easy_install supervisor
 
 # Add image configuration and scripts
 ADD start-mysqld.sh /start-mysqld.sh
 ADD run.sh /run.sh
 RUN chmod 755 /*.sh
+RUN echo_supervisord_conf > /etc/supervisord.conf && \
+    echo "[include]" >> /etc/supervisord.conf && \
+    echo "files = /etc/supervisor/conf.d/*.conf" >> /etc/supervisord.conf
 ADD supervisord-mysqld.conf /etc/supervisor/conf.d/supervisord-mysqld.conf
 
 # Remove pre-installed database
